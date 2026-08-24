@@ -2,7 +2,7 @@
 
 import logging
 
-from app.rag.vector_store import load_vector_store
+from app.rag.lightweight_store import keyword_search
 from app.rag.query_parser import parse_query
 from app.rag.eligibility import evaluate_eligibility
 
@@ -202,38 +202,12 @@ def search_schemes(
     logger.info("Parsed query: %s", parsed)
 
     # --------------------------------------------------
-    # Step 2: Load vector store
+    # Step 2: Search the bundled SQLite full-text index
     # --------------------------------------------------
 
-    vector_store = load_vector_store()
-
-    # --------------------------------------------------
-    # Step 3: Semantic search with Chroma where clause
-    # --------------------------------------------------
-
-    where = build_where_clause(requested_state, requested_category)
-
-    logger.info(
-        "Chroma where clause: %s",
-        where if where else "none (full corpus scan)",
-    )
-
-    try:
-        semantic_results = vector_store.similarity_search_with_score(
-            query,
-            k=50,
-            filter=where if where else None,
-        )
-    except Exception as exc:
-        # Fall back to an unrestricted search if filter fails
-        logger.warning(
-            "Chroma filter clause failed (%s), falling back to unrestricted search.",
-            exc,
-        )
-        semantic_results = vector_store.similarity_search_with_score(
-            query,
-            k=50,
-        )
+    # The data file includes an FTS index, so no Torch model or Chroma server
+    # needs to be loaded at runtime.
+    semantic_results = keyword_search(query, k=50)
 
     logger.info("Semantic candidates: %d", len(semantic_results))
 

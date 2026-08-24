@@ -22,20 +22,21 @@ the final answer in the chosen language.
 
 Open `http://127.0.0.1:8000`.
 
-## Deploy on Hugging Face Spaces (Gradio SDK / ZeroGPU)
+## Deploy on Render
 
-1. Create a new Space on [Hugging Face](https://huggingface.co/spaces) with **Gradio** SDK.
-2. Under Space **Settings** -> **Variables and secrets**, add:
-   - Secret: `GROQ_API_KEY` (Your Groq API key from [console.groq.com](https://console.groq.com/keys)).
-   - Variable: `EMBEDDING_LOCAL_FILES_ONLY=false`
-3. Connect your GitHub repository (`Anii-hub/Govt_scheme`) or push directly to Hugging Face Spaces.
-4. Hugging Face Spaces will automatically launch the Gradio UI from `app.py`.
+This repository includes `render.yaml` for a Render Blueprint deployment.
+
+1. In the [Render Dashboard](https://dashboard.render.com/), select **New** -> **Blueprint** and choose this GitHub repository.
+2. Render reads `render.yaml`, installs the lightweight runtime dependencies, and starts the FastAPI service.
+3. When prompted, set `GROQ_API_KEY` as a secret.
+
+The deployed service serves the web UI at `/`, exposes the API at `/api/search`,
+and uses the included SQLite full-text index. It does not load PyTorch, Chroma,
+or a sentence-transformer model, keeping RAM use suitable for Render's free tier.
 
 ## Environment variables
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `GROQ_API_KEY` | Yes | Translation and answer generation |
-| `EMBEDDING_LOCAL_FILES_ONLY` | No | Set `false` on Hugging Face Spaces so a cold instance can download the model |
-| `EMBEDDING_MODEL` | No | Override the default multilingual embedding model |
 

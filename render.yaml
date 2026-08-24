@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: yojnasearch
+    runtime: python
+    plan: free
+    buildCommand: pip install --no-cache-dir -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
