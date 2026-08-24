@@ -162,11 +162,9 @@ with gr.Blocks(title="Govt Scheme Search AI") as demo:
 app = gr.mount_gradio_app(fastapi_app, demo, path="/")
 
 if __name__ == "__main__":
-    # Spaces reserves port 7860 for the Python application.  Gradio 6's SSR
-    # proxy otherwise tries to bind the same port and the Space is stopped.
+    # Let the Spaces runtime assign an available application port.  In this
+    # environment port 7860 can already be reserved by its supervisor.
     demo.launch(
-        server_name="0.0.0.0",
-        server_port=int(os.environ.get("PORT", 7860)),
         theme=gr.themes.Soft(),
         ssr_mode=False,
     )
