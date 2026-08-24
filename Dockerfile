@@ -2,21 +2,27 @@
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PORT=8080 \
+    PORT=7860 \
+    HOME=/home/user \
     EMBEDDING_LOCAL_FILES_ONLY=false
-
-WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
+    git \
+    git-lfs \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+RUN useradd -m -u 1000 user
+WORKDIR $HOME/app
+
+COPY --chown=user:user requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+COPY --chown=user:user . $HOME/app
 
-EXPOSE 8080
+USER user
 
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}"]
+EXPOSE 7860
+
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-7860}"]

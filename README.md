@@ -1,3 +1,13 @@
+﻿---
+title: Govt Scheme Search RAG
+emoji: 🏛️
+colorFrom: indigo
+colorTo: blue
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # YojnaSearch
 
 An English and Hindi search assistant for Indian government schemes. It uses a
@@ -6,30 +16,24 @@ the final answer in the chosen language.
 
 ## Run locally
 
-```powershell
+`powershell
 .\.venv\Scripts\uvicorn.exe app.main:app --reload
-```
+`
 
-Open `http://127.0.0.1:8000`.
+Open http://127.0.0.1:8000.
 
-## Deploy on Render
+## Deploy on Hugging Face Spaces
 
-This repository includes a [`render.yaml`](render.yaml) Blueprint.
-
-1. In Render, choose **New > Blueprint** and select this repository.
-2. Render uses the settings in `render.yaml` and prompts for `GROQ_API_KEY`.
-   Paste a newly rotated Groq API key. Do not commit it to this repository.
-3. Deploy and open the generated `onrender.com` URL.
-
-The free tier may take about a minute to wake after inactivity. Its filesystem
-is ephemeral, so the first query after a cold start can take longer while the
-embedding model downloads. The Chroma index is committed through Git LFS and is
-available with each fresh deployment.
+1. Create a new Space on [Hugging Face](https://huggingface.co/spaces) and select **Docker** SDK.
+2. Under Space Settings, add the secret variable:
+   - GROQ_API_KEY: Your Groq API key from [console.groq.com](https://console.groq.com/keys).
+3. Connect your GitHub repository (Anii-hub/Govt_scheme) or push this repository to Hugging Face Spaces.
+4. Hugging Face will automatically build and host the Docker application on a free **16 GB RAM / 2 vCPU** instance.
 
 ## Environment variables
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `GROQ_API_KEY` | Yes | Translation and answer generation |
-| `EMBEDDING_LOCAL_FILES_ONLY` | No | Set `false` on Render so a cold instance can download the model |
-| `EMBEDDING_MODEL` | No | Override the default multilingual embedding model |
+| GROQ_API_KEY | Yes | Translation and answer generation |
+| EMBEDDING_LOCAL_FILES_ONLY | No | Set alse on Hugging Face Spaces so a cold instance can download the model |
+| EMBEDDING_MODEL | No | Override the default multilingual embedding model |
