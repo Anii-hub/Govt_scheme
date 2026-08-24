@@ -199,7 +199,7 @@ def clean_json_response(raw_answer):
 # Validate answer
 # =========================================================
 
-def validate_answer(answer):
+def validate_answer(answer, language="english"):
 
     if not isinstance(answer, dict):
 
@@ -253,10 +253,10 @@ def validate_answer(answer):
 
     if "important_note" not in answer:
 
-        answer["important_note"] = (
-            "Final eligibility is determined "
-            "by the relevant government authority."
-        )
+        answer["important_note"] = {
+            "english": "Final eligibility is determined by the relevant government authority.",
+            "hindi": "अंतिम पात्रता का निर्णय संबंधित सरकारी प्राधिकरण द्वारा किया जाता है।",
+        }[language]
 
     # -----------------------------------------------------
     # Validate individual schemes
@@ -384,8 +384,15 @@ documents, application procedures, amounts, dates, or URLs.
 
 Do not assume that the user is eligible.
 
-Write every human-readable value in {answer_language}. Keep official scheme
-names and URLs exactly as provided in the context.
+Write every human-readable value in {answer_language}.
+
+For Hindi responses, use Hindi written in Devanagari for EVERY user-visible
+field: summary, scheme_name, state, category, relevance, benefits,
+eligibility, application_process, documents_required, and important_note.
+Translate scheme names as well, adding the original official name in
+parentheses only when it is needed for recognition. Do not leave English prose
+in any of these fields. Keep only URLs and unavoidable official acronyms (such
+as PM, SC/ST, or Aadhaar) unchanged.
 
 Return ONLY valid JSON.
 
@@ -395,7 +402,7 @@ The JSON must follow this exact structure:
   "summary": "short answer",
   "schemes": [
     {
-      "scheme_name": "exact scheme name",
+      "scheme_name": "scheme name in the requested language",
       "state": "state",
       "category": "category",
       "relevance": "why this scheme may be relevant",
@@ -425,7 +432,7 @@ RULES:
 11. Do not assume eligibility.
 12. Do not combine information from different schemes.
 13. Keep the response concise.
-"""
+""".replace("{answer_language}", answer_language)
 
     # -----------------------------------------------------
     # User prompt
@@ -515,8 +522,6 @@ Return ONLY the JSON object.
     # Validate
     # -----------------------------------------------------
 
-    answer = validate_answer(
-        answer
-    )
+    answer = validate_answer(answer, language=language)
 
     return answer
