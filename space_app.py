@@ -108,7 +108,7 @@ def perform_search(query: str, language: str):
         )
 
 
-with gr.Blocks(title="Govt Scheme Search AI", theme=gr.themes.Soft()) as demo:
+with gr.Blocks(title="Govt Scheme Search AI") as demo:
     gr.Markdown(
         """
         # 🏛️ Indian Government Schemes AI Assistant (YojnaSearch)
@@ -162,4 +162,11 @@ with gr.Blocks(title="Govt Scheme Search AI", theme=gr.themes.Soft()) as demo:
 app = gr.mount_gradio_app(fastapi_app, demo, path="/")
 
 if __name__ == "__main__":
-    demo.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
+    # Spaces reserves port 7860 for the Python application.  Gradio 6's SSR
+    # proxy otherwise tries to bind the same port and the Space is stopped.
+    demo.launch(
+        server_name="0.0.0.0",
+        server_port=int(os.environ.get("PORT", 7860)),
+        theme=gr.themes.Soft(),
+        ssr_mode=False,
+    )
