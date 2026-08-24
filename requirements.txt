@@ -1,7 +1,9 @@
 fastapi
 uvicorn[standard]
 gradio
-huggingface_hub<0.26.0
+# Hugging Face Spaces installs Gradio 6, which requires huggingface-hub >= 1.16.
+# The former <0.26 pin made pip's dependency resolver fail during the Space build.
+huggingface_hub>=1.16,<2
 
 langchain
 langchain-core
@@ -19,4 +21,4 @@ datasets
 python-dotenv
 pydantic
 groq
-
+
