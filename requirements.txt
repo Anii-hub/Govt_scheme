@@ -1,5 +1,6 @@
 fastapi
 uvicorn[standard]
+gradio
 
 langchain
 langchain-core
@@ -16,4 +17,4 @@ datasets
 
 python-dotenv
 pydantic
-groq
+groq
