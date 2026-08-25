@@ -5,6 +5,5 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .pip-install.log
-data/
 .DS_Store
 

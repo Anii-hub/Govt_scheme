@@ -1,104 +1,84 @@
+import os
+import shutil
+from pathlib import Path
 from datasets import load_dataset
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+try:
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
+except ImportError:
+    from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_chroma import Chroma
 
 from app.ingestion.document_builder import create_document
-from app.rag.vector_store import rebuild_vector_store
+from app.embeddings import get_embeddings
+from app.config import CHROMA_PATH, COLLECTION_NAME
 
 
 DATASET_NAME = "smartduketech/indian-government-schemes-2025"
+BATCH_SIZE = 250
 
 
-def load_schemes():
+def load_schemes(persist_directory=None):
+    persist_directory = persist_directory or CHROMA_PATH
 
     # -------------------------------------------------
-    # Step 1: Load dataset
+    # Step 1: Load dataset from Hugging Face
     # -------------------------------------------------
-
-    print("Loading government schemes dataset...")
-
-    dataset = load_dataset(
-        DATASET_NAME,
-        split="train"
-    )
-
-    print("Dataset loaded successfully.")
-    print("Number of schemes:", len(dataset))
+    print(f"Loading government schemes dataset '{DATASET_NAME}'...")
+    dataset = load_dataset(DATASET_NAME, split="train")
+    print(f"Dataset loaded: {len(dataset)} schemes found.")
 
     # -------------------------------------------------
     # Step 2: Convert dataset rows into Documents
     # -------------------------------------------------
-
     documents = []
-
     for scheme in dataset:
+        doc = create_document(scheme)
+        if doc.page_content.strip():
+            documents.append(doc)
 
-        document = create_document(scheme)
-
-        documents.append(document)
-
-    print("\nDocuments created:", len(documents))
-
-    # -------------------------------------------------
-    # Step 3: Check for empty documents
-    # -------------------------------------------------
-
-    empty_documents = [
-        document
-        for document in documents
-        if not document.page_content.strip()
-    ]
-
-    print("Empty documents:", len(empty_documents))
+    print(f"Valid scheme documents created: {len(documents)}")
 
     # -------------------------------------------------
-    # Step 4: Split documents into chunks
+    # Step 3: Split into chunks
     # -------------------------------------------------
-
     splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=100,
+        chunk_size=1200,
+        chunk_overlap=150,
     )
     chunks = splitter.split_documents(documents)
-
-    print("Original documents:", len(documents))
-    print("Total chunks:", len(chunks))
+    print(f"Total chunks to embed: {len(chunks)}")
 
     # -------------------------------------------------
-    # Step 5: Display first chunk
+    # Step 4: Clear existing Chroma directory
     # -------------------------------------------------
-
-    print("\n--- FIRST CHUNK ---")
-
-    print(
-        chunks[0].page_content
-    )
-
-    print("\n--- FIRST CHUNK METADATA ---")
-
-    print(
-        chunks[0].metadata
-    )
+    path = Path(persist_directory)
+    if path.exists():
+        print(f"Removing old Chroma store at {path}...")
+        shutil.rmtree(path)
 
     # -------------------------------------------------
-    # Step 6: Create the real ChromaDB
+    # Step 5: Ingest in batches using FastEmbed
     # -------------------------------------------------
+    embeddings = get_embeddings()
+    print(f"Embedding model ready. Ingesting in batches of {BATCH_SIZE}...")
 
-    print(
-        "\nLoading all chunks into ChromaDB:",
-        len(chunks)
-    )
+    vector_store = None
+    for i in range(0, len(chunks), BATCH_SIZE):
+        batch = chunks[i : i + BATCH_SIZE]
+        print(f"Ingesting batch {i // BATCH_SIZE + 1} / {(len(chunks) + BATCH_SIZE - 1) // BATCH_SIZE} ({len(batch)} chunks)...")
+        if vector_store is None:
+            vector_store = Chroma.from_documents(
+                documents=batch,
+                embedding=embeddings,
+                persist_directory=persist_directory,
+                collection_name=COLLECTION_NAME,
+            )
+        else:
+            vector_store.add_documents(batch)
 
-    vector_store = rebuild_vector_store(
-        chunks,
-        persist_directory="data/chroma"
-    )
-
-    print(
-        "\nVector database created successfully."
-    )
-
-    return chunks
+    print(f"\nAll {len(chunks)} chunks across {len(documents)} schemes successfully ingested into ChromaDB at {persist_directory}!")
+    return vector_store
 
 
 if __name__ == "__main__":
-    load_schemes()
+    load_schemes()
