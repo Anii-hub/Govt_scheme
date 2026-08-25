@@ -1,7 +1,23 @@
 fastapi
 uvicorn[standard]
 
-python-dotenv
-pydantic
+langchain
+langchain-core
+langchain-community
+langchain-chroma
+langchain-groq
+
+chromadb
+
+# Lightweight ONNX-based embeddings — replaces sentence-transformers + PyTorch
+fastembed
+
 groq
 
+pymupdf
+requests
+beautifulsoup4
+datasets
+
+python-dotenv
+pydantic

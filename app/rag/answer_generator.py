@@ -3,12 +3,10 @@ import os
 
 from groq import Groq
 
+import app.config
 
-MODEL_NAME = "openai/gpt-oss-120b"
-LANGUAGE_NAMES = {
-    "english": "English",
-    "hindi": "Hindi (Devanagari script)",
-}
+
+MODEL_NAME = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 
 
 # =========================================================
@@ -26,35 +24,6 @@ def get_groq_client():
         )
 
     return Groq(api_key=api_key)
-
-
-def translate_query_for_search(query, language):
-    """Translate non-English input to English for the existing search index."""
-    if language == "english":
-        return query
-
-    response = get_groq_client().chat.completions.create(
-        model=MODEL_NAME,
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "Translate the user's government-scheme query to English. "
-                    "Preserve all facts such as state, age, gender, occupation, "
-                    "income, and requested help. Return only the translation."
-                ),
-            },
-            {"role": "user", "content": query},
-        ],
-        temperature=0,
-        max_tokens=300,
-    )
-
-    translated = response.choices[0].message.content
-    if not translated or not translated.strip():
-        raise ValueError("The query translation service returned an empty response.")
-
-    return translated.strip()
 
 
 # =========================================================
@@ -199,7 +168,7 @@ def clean_json_response(raw_answer):
 # Validate answer
 # =========================================================
 
-def validate_answer(answer, language="english"):
+def validate_answer(answer):
 
     if not isinstance(answer, dict):
 
@@ -253,10 +222,10 @@ def validate_answer(answer, language="english"):
 
     if "important_note" not in answer:
 
-        answer["important_note"] = {
-            "english": "Final eligibility is determined by the relevant government authority.",
-            "hindi": "अंतिम पात्रता का निर्णय संबंधित सरकारी प्राधिकरण द्वारा किया जाता है।",
-        }[language]
+        answer["important_note"] = (
+            "Final eligibility is determined "
+            "by the relevant government authority."
+        )
 
     # -----------------------------------------------------
     # Validate individual schemes
@@ -330,10 +299,7 @@ def validate_answer(answer, language="english"):
 def generate_answer(
     query,
     results,
-    language="english",
 ):
-
-    answer_language = LANGUAGE_NAMES[language]
 
     # -----------------------------------------------------
     # No results
@@ -341,24 +307,19 @@ def generate_answer(
 
     if not results:
 
-        no_results_messages = {
-            "english": {
-                "summary": "I couldn't find any government schemes matching your query.",
-                "important_note": "Try providing more information such as your state, occupation, age, or type of assistance.",
-            },
-            "hindi": {
-                "summary": "मुझे आपके प्रश्न से मेल खाती कोई सरकारी योजना नहीं मिली।",
-                "important_note": "कृपया अपना राज्य, व्यवसाय, आयु या जिस सहायता की जरूरत है उसके बारे में अधिक जानकारी दें।",
-            },
-        }
-        message = no_results_messages[language]
-
         return {
-            "summary": message["summary"],
+            "summary": (
+                "I couldn't find any government schemes "
+                "matching your query."
+            ),
 
             "schemes": [],
 
-            "important_note": message["important_note"],
+            "important_note": (
+                "Try providing more information such as "
+                "your state, occupation, age, or type "
+                "of assistance."
+            ),
         }
 
     # -----------------------------------------------------
@@ -384,16 +345,6 @@ documents, application procedures, amounts, dates, or URLs.
 
 Do not assume that the user is eligible.
 
-Write every human-readable value in {answer_language}.
-
-For Hindi responses, use Hindi written in Devanagari for EVERY user-visible
-field: summary, scheme_name, state, category, relevance, benefits,
-eligibility, application_process, documents_required, and important_note.
-Translate scheme names as well, adding the original official name in
-parentheses only when it is needed for recognition. Do not leave English prose
-in any of these fields. Keep only URLs and unavoidable official acronyms (such
-as PM, SC/ST, or Aadhaar) unchanged.
-
 Return ONLY valid JSON.
 
 The JSON must follow this exact structure:
@@ -402,7 +353,7 @@ The JSON must follow this exact structure:
   "summary": "short answer",
   "schemes": [
     {
-      "scheme_name": "scheme name in the requested language",
+      "scheme_name": "exact scheme name",
       "state": "state",
       "category": "category",
       "relevance": "why this scheme may be relevant",
@@ -432,7 +383,7 @@ RULES:
 11. Do not assume eligibility.
 12. Do not combine information from different schemes.
 13. Keep the response concise.
-""".replace("{answer_language}", answer_language)
+"""
 
     # -----------------------------------------------------
     # User prompt
@@ -522,6 +473,8 @@ Return ONLY the JSON object.
     # Validate
     # -----------------------------------------------------
 
-    answer = validate_answer(answer, language=language)
+    answer = validate_answer(
+        answer
+    )
 
     return answer

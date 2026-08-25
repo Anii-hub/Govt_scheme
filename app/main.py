@@ -1,19 +1,14 @@
-# app/main.py
-
-import logging
-from typing import Literal
-
-from app.config import CHROMA_PATH
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
+from app.rag.query_parser import parse_query
 from app.rag.search import search_schemes
-from app.rag.answer_generator import generate_answer, translate_query_for_search
-
-
-logging.basicConfig(level=logging.INFO)
+from app.rag.answer_generator import generate_answer
 
 
 # =========================================================
@@ -23,7 +18,7 @@ logging.basicConfig(level=logging.INFO)
 app = FastAPI(
     title="Indian Government Schemes API",
     description="RAG API for discovering Indian government schemes",
-    version="2.0.0",
+    version="1.0.0",
 )
 
 
@@ -50,26 +45,31 @@ class SearchRequest(BaseModel):
         min_length=1,
         description="Natural-language government scheme query",
     )
-    language: Literal["english", "hindi"] = "english"
 
 
-import os
-from fastapi.staticfiles import StaticFiles
+# =========================================================
+# Static Frontend
+# =========================================================
 
-FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
-if os.path.exists(FRONTEND_DIR):
-    app.mount("/frontend", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
+FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
-@app.get("/")
+if FRONTEND_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
+
+
+# =========================================================
+# Root — serve the frontend
+# =========================================================
+
+@app.get("/", include_in_schema=False)
 def root():
-    from fastapi.responses import FileResponse
-    index_file = os.path.join(FRONTEND_DIR, "index.html")
-    if os.path.exists(index_file):
-        return FileResponse(index_file)
+    index_html = FRONTEND_DIR / "index.html"
+    if index_html.exists():
+        return FileResponse(str(index_html))
     return {
         "status": "ok",
         "message": "Indian Government Schemes API is running",
-        "version": "2.0.0",
+        "version": "1.0.0",
     }
 
 
@@ -81,7 +81,6 @@ def root():
 def health():
     return {
         "status": "healthy",
-        "vector_store_present": os.path.exists(CHROMA_PATH),
     }
 
 
@@ -103,22 +102,20 @@ def search(request: SearchRequest):
     try:
 
         # -------------------------------------------------
+        # Parse query
+        # -------------------------------------------------
+
+        parsed_query = parse_query(query)
+
+        # -------------------------------------------------
         # Retrieve schemes
         # -------------------------------------------------
 
-        search_query = translate_query_for_search(
-            query,
-            request.language,
-        )
-
-        search_output = search_schemes(
-            query=search_query,
+        results = search_schemes(
+            query=query,
+            semantic_k=100,
             final_k=5,
         )
-
-        results          = search_output["results"]
-        no_match_reason  = search_output["no_match_reason"]
-        parsed           = search_output["parsed"]
 
         # -------------------------------------------------
         # Generate structured answer
@@ -127,7 +124,6 @@ def search(request: SearchRequest):
         answer = generate_answer(
             query,
             results,
-            language=request.language,
         )
 
         # -------------------------------------------------
@@ -137,31 +133,29 @@ def search(request: SearchRequest):
         return {
             "success": True,
             "query": query,
-            "language": request.language,
 
             "parsed_query": {
-                "state":    parsed.get("state"),
-                "category": parsed.get("category"),
-                "age":      parsed.get("age"),
-                "gender":   parsed.get("gender"),
-                "income":   parsed.get("income"),
+                "state": parsed_query.get("state"),
+                "category": parsed_query.get("category"),
             },
-
-            "no_match_reason": no_match_reason,
 
             "results": answer,
         }
 
     except ValueError as error:
 
+        print("\nVALUE ERROR:")
+        print(error)
+
         raise HTTPException(
-            status_code=503,
+            status_code=500,
             detail=str(error),
         )
 
     except Exception as error:
 
-        logging.exception("Unexpected error during search")
+        print("\nUNEXPECTED API ERROR:")
+        print(error)
 
         raise HTTPException(
             status_code=500,

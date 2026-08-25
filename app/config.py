@@ -13,7 +13,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 EMBEDDING_MODEL = os.getenv(
     "EMBEDDING_MODEL",
-    "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    # FastEmbed default: lightweight ONNX model, no PyTorch required.
+    # ~40 MB on disk, 384-dimensional vectors, excellent retrieval quality.
+    "BAAI/bge-small-en-v1.5"
 )
 
 _chroma_path = Path(os.getenv("CHROMA_PATH", "data/chroma"))

@@ -1,12 +1,14 @@
 services:
   - type: web
-    name: yojnasearch
+    name: govt-scheme-search
     runtime: python
     plan: free
-    buildCommand: pip install --no-cache-dir -r requirements.txt
+    buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
-    autoDeployTrigger: commit
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.13
+      # Render prompts for this secret on the initial Blueprint deployment.
       - key: GROQ_API_KEY
         sync: false
